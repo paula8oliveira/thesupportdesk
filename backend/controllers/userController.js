@@ -1,5 +1,6 @@
 const asyncHandler = require('express-async-handler')
 const bcrypt = require('bcryptjs')
+const jwt = require('jsonwebtoken')
 
 const User = require('../models/userModel')
 
@@ -37,11 +38,12 @@ const registerUser = asyncHandler(async(req, res) => {
         res.status(201).json({
             _id: user._id,
             name: user.name,
-            email: user.email
+            email: user.email,
+            token: generateToken(user._id),
         })
     } else {
         res.status(400)
-        throw new errpr('Invalid user data')
+        throw new Error('Invalid user data')
     }
 }) 
 
@@ -49,8 +51,30 @@ const registerUser = asyncHandler(async(req, res) => {
 // @route /api/users/login
 // @acess Public 
 const loginUser = asyncHandler(async(req, res) => {
-    res.send('Login Route')
+    const {email, password} = req.body
+
+    const user = await User.findOne({email})
+
+    // Check user and password match
+    if(user && (await bcrypt.compare(password, user.password))) {
+        res.status(200).json({
+            _id: user._id,
+            name: user.name,
+            email: user.email,
+            token: generateToken(user._id),
+        })
+    } else {
+        res.status(401)
+        throw new Error('Invalid credentials')
+    }
 })
+
+//Generate token
+const generateToken = (id) => {
+    return jwt.sign({ id }, process.env.JWT_SECRET, {
+        expiresIn: '30d',
+    })
+}
 
 module.exports = {
     registerUser,
